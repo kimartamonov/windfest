@@ -1,7 +1,7 @@
 name: Kim Frameworks
 ai_config:
   default_model:
-    model: gpt-5
+    model: gpt-5-nano
     provider: openai
   providers:
     deepseek:
