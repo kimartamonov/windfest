@@ -10,7 +10,30 @@ ai_config:
       resource_path: u/kim/considerate_openai
 color: '#83a3fa'
 git_sync:
-  repositories: []
+  repositories:
+    - exclude_types_override: []
+      git_repo_resource_path: $res:u/kim/appealing_git_repository
+      group_by_folder: false
+      settings:
+        exclude_path: []
+        extra_include_path: []
+        include_path:
+          - f/**
+        include_type:
+          - script
+          - flow
+          - app
+          - folder
+          - resourcetype
+          - resource
+          - variable
+          - schedule
+          - user
+          - trigger
+          - group
+          - settings
+          - workspacedependencies
+      use_individual_branch: false
 operator_settings:
   audit_logs: true
   folders: true
