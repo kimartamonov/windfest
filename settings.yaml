@@ -1,0 +1,23 @@
+name: Kim Frameworks
+ai_config:
+  default_model:
+    model: gpt-5
+    provider: openai
+  providers:
+    openai:
+      models:
+        - gpt-5
+      resource_path: u/kim/considerate_openai
+color: '#83a3fa'
+git_sync:
+  repositories: []
+operator_settings:
+  audit_logs: true
+  folders: true
+  groups: true
+  resources: true
+  runs: true
+  schedules: true
+  triggers: true
+  variables: true
+  workers: true
