@@ -1,2 +1,3 @@
 version: v2
-locks: {}
+locks:
+  f/ic/scripts/save_to_fst: 937308b2cc549e069b3385f0966d10e57896e7f9baab45bd899fa713461f9bbd
