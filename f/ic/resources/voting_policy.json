@@ -1,0 +1,22 @@
+{
+  "kind": "ventureos.ic.voting_policy",
+  "version": "1.0.0",
+  "approveThreshold": 72,
+  "deferThreshold": 50,
+  "maxRounds": 5,
+  "votingMode": "formula",
+  "convergenceThreshold": 0.05,
+  "convergenceRounds": 2,
+  "biasAdjustments": {
+    "pessimist": -0.05,
+    "optimist": 0.05,
+    "neutral": 0.0,
+    "skeptic": -0.03
+  },
+  "noiseRange": 0.03,
+  "verdicts": {
+    "APPROVE": { "label": "Одобрить", "minScore": 0.72 },
+    "DEFER": { "label": "Отложить", "minScore": 0.50 },
+    "REJECT": { "label": "Отклонить", "minScore": 0.0 }
+  }
+}

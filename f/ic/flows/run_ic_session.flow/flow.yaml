@@ -1,0 +1,554 @@
+summary: "Сессия агентского инвесткомитета (IC Session)"
+description: |
+  Полный цикл мультиагентного инвесткомитета:
+  Такт 0: Инициализация → Такт 1: Контекст → Такт 2: Opening →
+  Такт 3: Дебаты → Такт 4: Рефлексия → Такт 5: Synthesis →
+  Такт 6: Голосование → Такт 7: Синтез решения →
+  Такт 8: Human Approval → Такт 9: Фиксация
+schema:
+  type: object
+  properties:
+    project:
+      type: object
+      description: "Проект для оценки инвесткомитетом"
+      properties:
+        title:
+          type: string
+          description: "Название проекта"
+        subFund:
+          type: string
+          description: "Субфонд: БАС, РОБОТ, МЭ, КОСМОС, ЭНЕРГИЯ, ИИ"
+          default: "БАС"
+        trl:
+          type: number
+          description: "Technology Readiness Level (1-9)"
+          default: 5
+        mrl:
+          type: number
+          description: "Manufacturing Readiness Level (1-10)"
+          default: 3
+        irr:
+          type: number
+          description: "Internal Rate of Return (0.0-1.0)"
+          default: 0.25
+        marketSize:
+          type: number
+          description: "Total Addressable Market (руб)"
+          default: 1000000000
+        teamStrength:
+          type: number
+          description: "Сила команды (0.0-1.0)"
+          default: 0.7
+        stage:
+          type: string
+          description: "Стадия: seed, series_a, series_b, growth"
+          default: "seed"
+        riskFactors:
+          type: number
+          description: "Агрегированный риск (0.0-1.0)"
+          default: 0.4
+        sovereigntyScore:
+          type: number
+          description: "Скор суверенности (0-9)"
+          default: 5
+      required:
+        - title
+    icParams:
+      type: object
+      description: "Параметры инвесткомитета (опционально)"
+      properties:
+        approveThreshold:
+          type: number
+          description: "Порог одобрения (0-100)"
+          default: 72
+        deferThreshold:
+          type: number
+          description: "Порог отложения (0-100)"
+          default: 50
+        maxRounds:
+          type: number
+          description: "Макс. раундов дебатов"
+          default: 5
+        votingMode:
+          type: string
+          description: "Режим голосования: formula, hybrid, llm"
+          default: "formula"
+  required:
+    - project
+value:
+  modules:
+    # ═══════════════════════════════════════════
+    # ТАКТ 0 — Инициализация сессии
+    # ═══════════════════════════════════════════
+    - id: init_session
+      summary: "Такт 0: Инициализация — Session, RoleCatalog, ICParams"
+      value:
+        type: script
+        path: f/ic/scripts/init_session
+        input_transforms:
+          project:
+            type: javascript
+            expr: "flow_input.project"
+          icParams:
+            type: javascript
+            expr: "flow_input.icParams ?? {}"
+
+    # ═══════════════════════════════════════════
+    # ТАКТ 1 — Загрузка контекста (параллельно)
+    # ═══════════════════════════════════════════
+    - id: load_context
+      summary: "Такт 1: Загрузка KAG + Ontology + Portfolio параллельно"
+      value:
+        type: branchall
+        parallel: true
+        branches:
+          - summary: "KAG — прецеденты"
+            modules:
+              - id: load_kag
+                value:
+                  type: script
+                  path: f/ic/scripts/load_kag_context
+                  input_transforms:
+                    project:
+                      type: javascript
+                      expr: "results.init_session.project"
+          - summary: "Ontology — концепты"
+            modules:
+              - id: load_ontology
+                value:
+                  type: script
+                  path: f/ic/scripts/load_ontology_context
+                  input_transforms:
+                    project:
+                      type: javascript
+                      expr: "results.init_session.project"
+          - summary: "Portfolio — пересечения"
+            modules:
+              - id: load_portfolio
+                value:
+                  type: script
+                  path: f/ic/scripts/load_portfolio_links
+                  input_transforms:
+                    project:
+                      type: javascript
+                      expr: "results.init_session.project"
+
+    - id: build_context
+      summary: "Такт 1b: Сборка единого контекстного снапшота"
+      value:
+        type: script
+        path: f/ic/scripts/build_shared_context
+        input_transforms:
+          session:
+            type: javascript
+            expr: "results.init_session"
+          kag:
+            type: javascript
+            expr: "results.load_kag"
+          ontology:
+            type: javascript
+            expr: "results.load_ontology"
+          portfolio:
+            type: javascript
+            expr: "results.load_portfolio"
+
+    # ═══════════════════════════════════════════
+    # ТАКТ 2 — Первичные позиции (Opening)
+    # ═══════════════════════════════════════════
+    - id: opening_round
+      summary: "Такт 2: Opening — каждый агент генерирует позицию"
+      value:
+        type: forloopflow
+        iterator:
+          type: javascript
+          expr: "results.init_session.roleCatalog.roles"
+        skip_failures: false
+        parallel: false
+        modules:
+          - id: run_opening
+            value:
+              type: script
+              path: f/ic/scripts/run_role_opening
+              input_transforms:
+                role:
+                  type: javascript
+                  expr: "flow_input.iter.value"
+                project:
+                  type: javascript
+                  expr: "results.init_session.project"
+                context:
+                  type: javascript
+                  expr: "results.build_context"
+                priorArgs:
+                  type: javascript
+                  expr: "results.opening_round ?? []"
+
+    # ═══════════════════════════════════════════
+    # ТАКТ 3 — Перекрёстные дебаты
+    # ═══════════════════════════════════════════
+    - id: cross_debate
+      summary: "Такт 3: Дебаты — раунды challenge/counter"
+      value:
+        type: whileloopflow
+        skip_failures: false
+        modules:
+          - id: debate_round
+            summary: "Один раунд дебатов"
+            value:
+              type: script
+              path: f/ic/scripts/run_debate_round
+              input_transforms:
+                roles:
+                  type: javascript
+                  expr: "results.init_session.roleCatalog.roles"
+                project:
+                  type: javascript
+                  expr: "results.init_session.project"
+                context:
+                  type: javascript
+                  expr: "results.build_context"
+                allArgs:
+                  type: javascript
+                  expr: >
+                    (() => {
+                      const opening = Array.isArray(results.opening_round)
+                        ? results.opening_round.flat()
+                        : [];
+                      const prev = results.debate_round?.allArgs ?? [];
+                      return prev.length > 0 ? prev : opening;
+                    })()
+                roundIndex:
+                  type: javascript
+                  expr: "(results.debate_round?.roundIndex ?? 0) + 1"
+          - id: convergence_check
+            summary: "Проверка сходимости"
+            value:
+              type: script
+              path: f/ic/scripts/check_convergence
+              input_transforms:
+                allArgs:
+                  type: javascript
+                  expr: "results.debate_round.allArgs"
+                round:
+                  type: javascript
+                  expr: "results.debate_round.roundIndex"
+                maxRounds:
+                  type: javascript
+                  expr: "results.init_session.icParams.maxRounds"
+            stop_after_if:
+              expr: "result.shouldStop"
+              skip_if_stopped: true
+
+    # ═══════════════════════════════════════════
+    # ТАКТ 4 — Рефлексия (параллельно)
+    # ═══════════════════════════════════════════
+    - id: reflection
+      summary: "Такт 4: Рефлексия — противоречия + граф дебатов"
+      value:
+        type: branchall
+        parallel: true
+        branches:
+          - summary: "Детекция противоречий"
+            modules:
+              - id: detect_contradictions
+                value:
+                  type: script
+                  path: f/ic/scripts/detect_contradictions
+                  input_transforms:
+                    allArgs:
+                      type: javascript
+                      expr: "results.debate_round.allArgs"
+          - summary: "Граф дебатов + IBIS + belief drift"
+            modules:
+              - id: build_graph
+                value:
+                  type: script
+                  path: f/ic/scripts/build_debate_graph
+                  input_transforms:
+                    allArgs:
+                      type: javascript
+                      expr: "results.debate_round.allArgs"
+
+    # ═══════════════════════════════════════════
+    # ТАКТ 5 — Финальные позиции (Synthesis)
+    # ═══════════════════════════════════════════
+    - id: final_positions
+      summary: "Такт 5: Synthesis — итоговая позиция каждого агента"
+      value:
+        type: forloopflow
+        iterator:
+          type: javascript
+          expr: "results.init_session.roleCatalog.roles"
+        skip_failures: false
+        parallel: false
+        modules:
+          - id: run_synthesis
+            value:
+              type: script
+              path: f/ic/scripts/run_role_synthesis
+              input_transforms:
+                role:
+                  type: javascript
+                  expr: "flow_input.iter.value"
+                project:
+                  type: javascript
+                  expr: "results.init_session.project"
+                context:
+                  type: javascript
+                  expr: "results.build_context"
+                allArgs:
+                  type: javascript
+                  expr: "results.debate_round.allArgs"
+                contradictions:
+                  type: javascript
+                  expr: "results.detect_contradictions"
+                debateGraph:
+                  type: javascript
+                  expr: "results.build_graph"
+
+    # ═══════════════════════════════════════════
+    # ТАКТ 6 — Голосование
+    # ═══════════════════════════════════════════
+    - id: compute_scores
+      summary: "Такт 6a: Dimension scores"
+      value:
+        type: script
+        path: f/ic/scripts/compute_dimension_scores
+        input_transforms:
+          project:
+            type: javascript
+            expr: "results.init_session.project"
+
+    - id: voting
+      summary: "Такт 6b: Агрегация голосов → вердикт"
+      value:
+        type: script
+        path: f/ic/scripts/aggregate_votes
+        input_transforms:
+          dimScores:
+            type: javascript
+            expr: "results.compute_scores"
+          roleCatalog:
+            type: javascript
+            expr: "results.init_session.roleCatalog"
+          icParams:
+            type: javascript
+            expr: "results.init_session.icParams"
+          synthesisArgs:
+            type: javascript
+            expr: "Array.isArray(results.final_positions) ? results.final_positions.flat() : []"
+
+    # ═══════════════════════════════════════════
+    # ТАКТ 7 — Синтез решения
+    # ═══════════════════════════════════════════
+    - id: chairman_synthesis
+      summary: "Такт 7a: Chairman — вердикт и основание"
+      value:
+        type: script
+        path: f/ic/scripts/run_chairman_synthesis
+        input_transforms:
+          allArgs:
+            type: javascript
+            expr: "results.debate_round.allArgs"
+          votes:
+            type: javascript
+            expr: "results.voting"
+          contradictions:
+            type: javascript
+            expr: "results.detect_contradictions"
+          project:
+            type: javascript
+            expr: "results.init_session.project"
+          context:
+            type: javascript
+            expr: "results.build_context"
+
+    - id: dialectic_synthesis
+      summary: "Такт 7b: Dialectic — T-схема и условия"
+      value:
+        type: script
+        path: f/ic/scripts/run_dialectic_synthesis
+        input_transforms:
+          contradictions:
+            type: javascript
+            expr: "results.detect_contradictions"
+          allArgs:
+            type: javascript
+            expr: "results.debate_round.allArgs"
+          votes:
+            type: javascript
+            expr: "results.voting"
+          project:
+            type: javascript
+            expr: "results.init_session.project"
+          context:
+            type: javascript
+            expr: "results.build_context"
+
+    - id: conditional_decision
+      summary: "Такт 7c: Сборка ConditionalDecision"
+      value:
+        type: script
+        path: f/ic/scripts/assemble_conditional_decision
+        input_transforms:
+          votes:
+            type: javascript
+            expr: "results.voting"
+          chairman:
+            type: javascript
+            expr: "results.chairman_synthesis"
+          dialectic:
+            type: javascript
+            expr: "results.dialectic_synthesis"
+          contradictions:
+            type: javascript
+            expr: "results.detect_contradictions"
+          project:
+            type: javascript
+            expr: "results.init_session.project"
+
+    # ═══════════════════════════════════════════
+    # ТАКТ 8 — Одобрение человеком
+    # ═══════════════════════════════════════════
+    - id: human_approval
+      summary: "Такт 8: Ожидание одобрения человеком"
+      value:
+        type: rawscript
+        language: bun
+        content: |
+          export async function main(decision: any) {
+            return {
+              verdict: decision.verdict,
+              recommendation: decision.recommendation,
+              aggregatedScore: decision.aggregatedScore,
+              conditionsCount: decision.conditions?.length ?? 0,
+              blockerConditions: (decision.conditions ?? [])
+                .filter((c: any) => c.priority === "BLOCKER")
+                .map((c: any) => c.text),
+              scenarios: decision.scenarios,
+              chairman: decision.chairman?.text ?? "",
+            };
+          }
+        input_transforms:
+          decision:
+            type: javascript
+            expr: "results.conditional_decision"
+      suspend:
+        required_events: 1
+        timeout: 604800
+        resume_form:
+          schema:
+            type: object
+            properties:
+              approved:
+                type: boolean
+                description: "Одобрить решение инвесткомитета?"
+                default: true
+              comments:
+                type: string
+                description: "Комментарии (опционально)"
+            required:
+              - approved
+
+    - id: check_approval
+      summary: "Проверка одобрения"
+      value:
+        type: rawscript
+        language: bun
+        content: |
+          export async function main(resume: any) {
+            const approved = resume?.approved ?? false;
+            if (!approved) {
+              throw new Error(
+                "Решение отклонено: " + (resume?.comments ?? "без комментариев")
+              );
+            }
+            return { approved: true, comments: resume?.comments ?? "" };
+          }
+        input_transforms:
+          resume:
+            type: javascript
+            expr: "results.human_approval.resume"
+
+    # ═══════════════════════════════════════════
+    # ТАКТ 9 — Фиксация решения (параллельно)
+    # ═══════════════════════════════════════════
+    - id: persist_decision
+      summary: "Такт 9: Сохранение в FST + KAG + Portfolio"
+      value:
+        type: branchall
+        parallel: true
+        branches:
+          - summary: "FST"
+            modules:
+              - id: save_fst
+                value:
+                  type: script
+                  path: f/ic/scripts/save_to_fst
+                  input_transforms:
+                    decision:
+                      type: javascript
+                      expr: "results.conditional_decision"
+                    approval:
+                      type: javascript
+                      expr: "results.check_approval"
+          - summary: "KAG"
+            modules:
+              - id: save_kag
+                value:
+                  type: script
+                  path: f/ic/scripts/save_to_kag
+                  input_transforms:
+                    session:
+                      type: javascript
+                      expr: "results.init_session"
+                    allArgs:
+                      type: javascript
+                      expr: "results.debate_round.allArgs"
+                    decision:
+                      type: javascript
+                      expr: "results.conditional_decision"
+          - summary: "Portfolio"
+            modules:
+              - id: save_portfolio
+                value:
+                  type: script
+                  path: f/ic/scripts/save_portfolio_links
+                  input_transforms:
+                    project:
+                      type: javascript
+                      expr: "results.init_session.project"
+                    decision:
+                      type: javascript
+                      expr: "results.conditional_decision"
+
+  # ═══════════════════════════════════════════
+  # FAILURE HANDLER
+  # ═══════════════════════════════════════════
+  failure_module:
+    id: failure
+    summary: "Обработка ошибок IC Session"
+    value:
+      type: rawscript
+      language: bun
+      content: |
+        export async function main(error: {
+          message: string;
+          step_id: string;
+          name: string;
+          stack: string;
+        }) {
+          console.error(
+            `IC Session failed at [${error.step_id}]: ${error.message}`
+          );
+          return {
+            kind: "ventureos.ic.session_error",
+            step: error.step_id,
+            error: error.message,
+            timestamp: new Date().toISOString(),
+          };
+        }
+      input_transforms:
+        error:
+          type: javascript
+          expr: "error"

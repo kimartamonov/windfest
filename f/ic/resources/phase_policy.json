@@ -1,0 +1,47 @@
+{
+  "kind": "ventureos.ic.phase_policy",
+  "version": "1.0.0",
+  "phases": {
+    "LOADING": {
+      "description": "Загрузка контекста: KAG, онтология, портфель",
+      "parallel": true
+    },
+    "PRIMARY_POSITIONS": {
+      "description": "Первичные позиции (OPENING) от каждой роли",
+      "sequential": true
+    },
+    "CROSS_DEBATE": {
+      "description": "Перекрёстные дебаты: challenge/counter",
+      "maxRounds": 5,
+      "convergenceThreshold": 0.05,
+      "convergenceRoundsRequired": 2
+    },
+    "REFLECTION": {
+      "description": "Рефлексия: противоречия, IBIS, belief drift",
+      "parallel": true
+    },
+    "FINAL_POSITIONS": {
+      "description": "Финальные позиции (SYNTHESIS) от каждой роли",
+      "sequential": true
+    },
+    "VOTING": {
+      "description": "Голосование: dimension scores → agent scores → verdict"
+    },
+    "SYNTHESIS": {
+      "description": "Синтез: chairman + dialectic → ConditionalDecision"
+    },
+    "HUMAN_APPROVAL": {
+      "description": "Одобрение человеком через Windmill suspend",
+      "timeoutSeconds": 604800
+    },
+    "CONCLUDED": {
+      "description": "Фиксация решения: FST, KAG, Portfolio",
+      "parallel": true
+    }
+  },
+  "conditionTypes": [
+    "MILESTONE", "FINANCIAL", "GOVERNANCE", "REPORTING",
+    "TRANCHE", "SOVEREIGNTY", "TEAM", "EXIT"
+  ],
+  "conditionPriorities": ["BLOCKER", "HIGH", "MEDIUM", "LOW"]
+}

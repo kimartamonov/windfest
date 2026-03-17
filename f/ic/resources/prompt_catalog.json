@@ -1,0 +1,24 @@
+{
+  "kind": "ventureos.ic.prompt_catalog",
+  "version": "1.0.0",
+  "templates": {
+    "OPENING": {
+      "user": "Проект: {{title}} (субфонд: {{subFund}})\nTRL={{trl}}, MRL={{mrl}}, IRR={{irr}}, Рынок={{marketSize}}, Команда={{teamStrength}}, Стадия={{stage}}\nСуверенитет={{sovereigntyScore}}, Риск-факторы={{riskFactors}}\n\n{{kagContext}}\n\nСформулируй свою ПЕРВИЧНУЮ ПОЗИЦИЮ по данному проекту.\nОтветь строго в JSON: {\"text\": \"...\", \"dimension\": \"trl|mrl|sovereignty|market|finance|risk|team\", \"confidence\": 0.0-1.0, \"stance\": \"APPROVE|DEFER|REJECT\"}"
+    },
+    "CHALLENGE": {
+      "user": "Проект: {{title}}\n\nИстория дебатов:\n{{debateHistory}}\n\nАргумент для атаки (автор: {{targetAgent}}):\n«{{targetText}}»\n\nНайди СЛАБОЕ МЕСТО в этом аргументе и атакуй его.\nОтветь строго в JSON: {\"text\": \"...\", \"dimension\": \"...\", \"confidence\": 0.0-1.0, \"stance\": \"APPROVE|DEFER|REJECT\"}"
+    },
+    "COUNTER": {
+      "user": "Проект: {{title}}\n\nТвоя атакованная позиция:\n«{{originalText}}»\n\nАтака (автор: {{challengerAgent}}):\n«{{challengeText}}»\n\nОТВЕТЬ на атаку, защити свою позицию или скорректируй её.\nОтветь строго в JSON: {\"text\": \"...\", \"dimension\": \"...\", \"confidence\": 0.0-1.0, \"stance\": \"APPROVE|DEFER|REJECT\"}"
+    },
+    "SYNTHESIS": {
+      "user": "Проект: {{title}}\n\nПолная история дебатов:\n{{debateHistory}}\n\nОбнаруженные противоречия:\n{{contradictions}}\n\nСформулируй свою ИТОГОВУЮ ПОЗИЦИЮ с учётом всех аргументов дебатов.\nОтветь строго в JSON: {\"text\": \"...\", \"dimension\": \"...\", \"confidence\": 0.0-1.0, \"stance\": \"APPROVE|DEFER|REJECT\"}"
+    },
+    "CHAIRMAN": {
+      "user": "Проект: {{title}}\n\nИтоги голосования:\n{{votingSummary}}\n\nПротиворечия:\n{{contradictions}}\n\nВсе аргументы дебатов:\n{{debateHistory}}\n\nКак председатель, сформулируй:\n1. ВЕРДИКТ (APPROVE/DEFER/REJECT) и его основание\n2. Ключевые условия сделки\n3. Главный риск\n4. Следующие шаги\n\nОтветь в JSON: {\"text\": \"...\", \"verdict\": \"...\", \"conditions\": [\"...\"], \"mainRisk\": \"...\", \"nextSteps\": [\"...\"]}"
+    },
+    "DIALECTIC": {
+      "user": "Противоречия инвесткомитета:\n{{contradictions}}\n\nВсе аргументы:\n{{debateHistory}}\n\nДля каждого противоречия предложи T-схему синтеза:\n- Тезис\n- Антитезис\n- Синтез (конкретное условие сделки)\n\nОтветь в JSON: {\"syntheses\": [{\"thesis\": \"...\", \"antithesis\": \"...\", \"synthesis\": \"...\", \"conditionType\": \"MILESTONE|FINANCIAL|GOVERNANCE|REPORTING|TRANCHE|SOVEREIGNTY|TEAM|EXIT\", \"priority\": \"BLOCKER|HIGH|MEDIUM|LOW\", \"condition\": {\"text\": \"...\", \"metric\": \"...\", \"threshold\": ..., \"deadline\": \"...\"}}]}"
+    }
+  }
+}

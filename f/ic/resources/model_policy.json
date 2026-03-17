@@ -1,0 +1,20 @@
+{
+  "kind": "ventureos.ic.model_policy",
+  "version": "1.0.0",
+  "default": {
+    "model": "gpt-4o-mini",
+    "temperature": 0.7,
+    "maxTokens": 1024,
+    "timeoutMs": 30000,
+    "maxRetries": 1
+  },
+  "phaseOverrides": {
+    "OPENING": { "temperature": 0.8 },
+    "CHALLENGE": { "temperature": 0.9 },
+    "COUNTER": { "temperature": 0.7 },
+    "SYNTHESIS": { "temperature": 0.6, "maxTokens": 1500 },
+    "CHAIRMAN": { "temperature": 0.5, "maxTokens": 2048 },
+    "DIALECTIC": { "temperature": 0.6, "maxTokens": 2048 }
+  },
+  "roleOverrides": {}
+}
